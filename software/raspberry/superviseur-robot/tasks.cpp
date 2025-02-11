@@ -26,6 +26,7 @@
 #define PRIORITY_TRECEIVEFROMMON 25
 #define PRIORITY_TSTARTROBOT 20
 #define PRIORITY_TCAMERA 21
+#define PRIORITY_TBATTERY 23
 
 /*
  * Some remarks:
@@ -61,6 +62,12 @@ void Tasks::Init() {
         cerr << "Error mutex create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
+      if (err = rt_mutex_create(&mutex_battery, NULL)) {
+        cerr << "Error mutex create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    
+    
     if (err = rt_mutex_create(&mutex_robot, NULL)) {
         cerr << "Error mutex create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -82,6 +89,12 @@ void Tasks::Init() {
         cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
+    
+    if (err = rt_sem_create(&sem_readBattery, NULL, 0, S_FIFO)) {
+        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    
     if (err = rt_sem_create(&sem_openComRobot, NULL, 0, S_FIFO)) {
         cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -103,6 +116,11 @@ void Tasks::Init() {
         cerr << "Error task create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
+    if (err = rt_task_create(&th_battery, "th_battery", 0, PRIORITY_TBATTERY, 0)) {
+        cerr << "Error task create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    
     if (err = rt_task_create(&th_sendToMon, "th_sendToMon", 0, PRIORITY_TSENDTOMON, 0)) {
         cerr << "Error task create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -147,6 +165,11 @@ void Tasks::Run() {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
+    if (err = rt_task_start(&th_battery, (void(*)(void*)) & Tasks::BatteryTask, this)) {
+        cerr << "Error task start: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    
     if (err = rt_task_start(&th_sendToMon, (void(*)(void*)) & Tasks::SendToMonTask, this)) {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -184,6 +207,7 @@ void Tasks::Stop() {
 void Tasks::Join() {
     cout << "Tasks synchronized" << endl << flush;
     rt_sem_broadcast(&sem_barrier);
+    rt_sem_v(&sem_readBattery);
     pause();
 }
 
@@ -262,7 +286,12 @@ void Tasks::ReceiveFromMonTask(void *arg) {
         if (msgRcv->CompareID(MESSAGE_MONITOR_LOST)) {
             delete(msgRcv);
             exit(-1);
-        } else if (msgRcv->CompareID(MESSAGE_ROBOT_COM_OPEN)) {
+        } 
+        else if (msgRcv->CompareID(MESSAGE_ROBOT_BATTERY_GET)){
+            cout << "ok" << endl << flush;
+        }
+        
+        else if (msgRcv->CompareID(MESSAGE_ROBOT_COM_OPEN)) {
             rt_sem_v(&sem_openComRobot);
         } else if (msgRcv->CompareID(MESSAGE_ROBOT_START_WITHOUT_WD)) {
             rt_sem_v(&sem_startRobot);
@@ -343,6 +372,44 @@ void Tasks::StartRobotTask(void *arg) {
             robotStarted = 1;
             rt_mutex_release(&mutex_robotStarted);
         }
+    }
+}
+
+/**
+ * @brief Thread handling control of the robot.
+ */
+void Tasks::BatteryTask(void *arg) {
+ 
+    int battery_voltage, battery_level;
+    
+    cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
+    // Synchronization barrier (waiting that all tasks are starting)
+    rt_sem_p(&sem_readBattery, TM_INFINITE);
+    
+    /**************************************************************************************/
+    /* The task starts here                                                               */
+    /**************************************************************************************/
+    rt_task_set_periodic(NULL, TM_NOW, 500000000);// toutes les 0.5s
+
+    while (1) {
+//        battery_voltage = ReadBatteryVoltage();  
+        rt_task_wait_period(NULL);
+        cout << "Battery level";
+//        rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE);
+//        rs = robotStarted;
+//        rt_mutex_release(&mutex_robotStarted);
+//        if (rs == 1) {
+//            rt_mutex_acquire(&mutex_move, TM_INFINITE);
+//            cpMove = move;
+//            rt_mutex_release(&mutex_move);
+//            
+//            cout << " move: " << cpMove;
+//            
+//            rt_mutex_acquire(&mutex_robot, TM_INFINITE);
+//            robot.Write(new Message((MessageID)cpMove));
+//            rt_mutex_release(&mutex_robot);
+//        }
+        cout << endl << flush;
     }
 }
 
