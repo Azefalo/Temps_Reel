@@ -287,9 +287,12 @@ void Tasks::ReceiveFromMonTask(void *arg) {
             delete(msgRcv);
             exit(-1);
         } 
-        else if (msgRcv->CompareID(MESSAGE_ROBOT_BATTERY_GET)){
-            cout << "ok" << endl << flush;
-        }
+//        else if (msgRcv->CompareID(MESSAGE_ROBOT_BATTERY_GET)){
+//            //cout << "ok" << endl << flush;
+//            rt_mutex_acquire(&mutex_battery, TM_INFINITE);
+//            message_battery = msgRcv->GetID();
+//            rt_mutex_release(&mutex_battery);
+//        }
         
         else if (msgRcv->CompareID(MESSAGE_ROBOT_COM_OPEN)) {
             rt_sem_v(&sem_openComRobot);
@@ -353,6 +356,8 @@ void Tasks::StartRobotTask(void *arg) {
     /**************************************************************************************/
     /* The task startRobot starts here                                                    */
     /**************************************************************************************/
+    
+    
     while (1) {
 
         Message * msgSend;
@@ -381,10 +386,11 @@ void Tasks::StartRobotTask(void *arg) {
 void Tasks::BatteryTask(void *arg) {
  
     int battery_voltage, battery_level;
-    
+    int rs;
+    Message * msg_battery;
     cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
     // Synchronization barrier (waiting that all tasks are starting)
-    rt_sem_p(&sem_readBattery, TM_INFINITE);
+    rt_sem_p(&sem_barrier, TM_INFINITE);
     
     /**************************************************************************************/
     /* The task starts here                                                               */
@@ -394,21 +400,16 @@ void Tasks::BatteryTask(void *arg) {
     while (1) {
 //        battery_voltage = ReadBatteryVoltage();  
         rt_task_wait_period(NULL);
-        cout << "Battery level";
-//        rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE);
-//        rs = robotStarted;
-//        rt_mutex_release(&mutex_robotStarted);
-//        if (rs == 1) {
-//            rt_mutex_acquire(&mutex_move, TM_INFINITE);
-//            cpMove = move;
-//            rt_mutex_release(&mutex_move);
-//            
-//            cout << " move: " << cpMove;
-//            
-//            rt_mutex_acquire(&mutex_robot, TM_INFINITE);
-//            robot.Write(new Message((MessageID)cpMove));
-//            rt_mutex_release(&mutex_robot);
-//        }
+//        cout << "Battery update";
+        rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE);
+        rs = robotStarted;
+        rt_mutex_release(&mutex_robotStarted);
+        if (rs == 1) {
+            rt_mutex_acquire(&mutex_robot, TM_INFINITE);
+            msg_battery = robot.Write(robot.GetBattery());
+            rt_mutex_release(&mutex_robot);
+            WriteInQueue(&q_messageToMon, msg_battery);
+        }
         cout << endl << flush;
     }
 }
