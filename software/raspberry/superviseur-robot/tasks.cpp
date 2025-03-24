@@ -25,7 +25,7 @@
 #define PRIORITY_TSENDTOMON 22
 #define PRIORITY_TRECEIVEFROMMON 25
 #define PRIORITY_TSTARTROBOT 20
-#define PRIORITY_TCAMERA 21
+#define PRIORITY_TENABLECAMERA 24
 #define PRIORITY_TBATTERY 23
 
 /*
@@ -67,7 +67,10 @@ void Tasks::Init() {
         exit(EXIT_FAILURE);
     }
     
-    
+      if (err = rt_mutex_create(&mutex_camera, NULL)) {
+        cerr << "Error mutex create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
     if (err = rt_mutex_create(&mutex_robot, NULL)) {
         cerr << "Error mutex create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -95,6 +98,11 @@ void Tasks::Init() {
         exit(EXIT_FAILURE);
     }
     
+      if (err = rt_sem_create(&sem_enableCamera, NULL, 0, S_FIFO)) {
+        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    
     if (err = rt_sem_create(&sem_openComRobot, NULL, 0, S_FIFO)) {
         cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -117,6 +125,10 @@ void Tasks::Init() {
         exit(EXIT_FAILURE);
     }
     if (err = rt_task_create(&th_battery, "th_battery", 0, PRIORITY_TBATTERY, 0)) {
+        cerr << "Error task create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_create(&th_enableCamera, "th_enableCamera", 0, PRIORITY_TENABLECAMERA, 0)) {
         cerr << "Error task create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
@@ -166,6 +178,11 @@ void Tasks::Run() {
         exit(EXIT_FAILURE);
     }
     if (err = rt_task_start(&th_battery, (void(*)(void*)) & Tasks::BatteryTask, this)) {
+        cerr << "Error task start: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    
+       if (err = rt_task_start(&th_enableCamera, (void(*)(void*)) & Tasks::EnableCameraTask, this)) {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
@@ -287,12 +304,6 @@ void Tasks::ReceiveFromMonTask(void *arg) {
             delete(msgRcv);
             exit(-1);
         } 
-//        else if (msgRcv->CompareID(MESSAGE_ROBOT_BATTERY_GET)){
-//            //cout << "ok" << endl << flush;
-//            rt_mutex_acquire(&mutex_battery, TM_INFINITE);
-//            message_battery = msgRcv->GetID();
-//            rt_mutex_release(&mutex_battery);
-//        }
         
         else if (msgRcv->CompareID(MESSAGE_ROBOT_COM_OPEN)) {
             rt_sem_v(&sem_openComRobot);
@@ -310,6 +321,31 @@ void Tasks::ReceiveFromMonTask(void *arg) {
         }
         delete(msgRcv); // mus be deleted manually, no consumer
     }
+}
+
+void Tasks::EnableCameraTask(void *arg) {
+    int status;
+    Message * msgSend;
+
+    cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
+    // Synchronization barrier (waiting that all tasks are starting)
+    rt_sem_p(&sem_barrier, TM_INFINITE);
+    while (1) {
+            rt_sem_p(&sem_enableCamera, TM_INFINITE);
+            cout << "Enable camera (";
+            rt_mutex_acquire(&mutex_camera, TM_INFINITE);
+            status = camera.Open(); 
+            rt_mutex_release(&mutex_camera);
+            cout << status;
+            cout << ")" << endl << flush;
+
+            if (status < 0) {
+                msgSend = new Message(MESSAGE_ANSWER_NACK);
+            } else {
+                msgSend = new Message(MESSAGE_ANSWER_ACK);
+            }
+            WriteInQueue(&q_messageToMon, msgSend); 
+        }
 }
 
 /**
