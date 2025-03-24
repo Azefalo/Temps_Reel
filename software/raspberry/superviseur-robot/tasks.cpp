@@ -103,6 +103,11 @@ void Tasks::Init() {
         exit(EXIT_FAILURE);
     }
     
+        if (err = rt_sem_create(&sem_disableCamera, NULL, 0, S_FIFO)) {
+        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    
     if (err = rt_sem_create(&sem_openComRobot, NULL, 0, S_FIFO)) {
         cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -319,7 +324,11 @@ void Tasks::ReceiveFromMonTask(void *arg) {
             move = msgRcv->GetID();
             rt_mutex_release(&mutex_move);
         }
+        else if (msgRcv->CompareID(MESSAGE_CAMERA_CLOSE)){
+            rt_sem_v(&sem_disableCamera);
+        }
         delete(msgRcv); // mus be deleted manually, no consumer
+        
     }
 }
 
@@ -345,8 +354,38 @@ void Tasks::EnableCameraTask(void *arg) {
                 msgSend = new Message(MESSAGE_ANSWER_ACK);
             }
             WriteInQueue(&q_messageToMon, msgSend); 
+            if (camera.IsOpen())
+            {
+                rt_task_set_periodic(NULL, TM_NOW, 100000000);// toutes les 0.1s
+                while (camera.IsOpen())
+                {
+                    rt_task_wait_period(NULL);
+                    if(tr_sem_p(&sem_disableCamera, TM_NONBLOCK) == 0){
+                        tr_mutex_acquire(&mutex_camera, TM_INFINITE);
+                        camera.Close();
+                        rt_mutex_release(&mutex_Camera);
+                        // Envia mensagem avisando que a câmera foi fechada
+                        Message *closeMsg = new Message(MESSAGE_CAMERA_CLOSED);
+                        WriteInQueue(&q_messageToMon, closeMsg);
+                    break;
+                    }
+
+                // Captura e envia a imagem para o monitor
+                rt_mutex_acquire(&mutex_camera, TM_INFINITE);
+                Img* frame = camera.Grab();
+                rt_mutex_release(&mutex_camera);
+
+                if (frame != nullptr) {
+                    // Supondo que o construtor de Message comporte envio de imagem
+                    Message *imgMsg = new Message(frame);
+                    WriteInQueue(&q_messageToMon, imgMsg);
+                    delete frame;
+                }
+            }
         }
+    }
 }
+
 
 /**
  * @brief Thread opening communication with the robot.
