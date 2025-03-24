@@ -97,6 +97,7 @@ private:
     RT_SEM sem_readBattery;
     RT_SEM sem_openComRobot;
     RT_SEM sem_enableCamera;
+    RT_SEM sem_disableCamera;
     RT_SEM sem_serverOk;
     RT_SEM sem_startRobot;
 
