@@ -64,13 +64,16 @@ private:
     /**********************************************************************/
     ComMonitor monitor;
     ComRobot robot;
+    Camera camera;
     int robotStarted = 0;
     int move = MESSAGE_ROBOT_STOP;
-    
+    int battery = 0;
     /**********************************************************************/
     /* Tasks                                                              */
     /**********************************************************************/
     RT_TASK th_server;
+    RT_TASK th_battery;
+    RT_TASK th_enableCamera;
     RT_TASK th_sendToMon;
     RT_TASK th_receiveFromMon;
     RT_TASK th_openComRobot;
@@ -82,6 +85,8 @@ private:
     /**********************************************************************/
     RT_MUTEX mutex_monitor;
     RT_MUTEX mutex_robot;
+    RT_MUTEX mutex_camera;
+    RT_MUTEX mutex_battery;
     RT_MUTEX mutex_robotStarted;
     RT_MUTEX mutex_move;
 
@@ -89,7 +94,9 @@ private:
     /* Semaphores                                                         */
     /**********************************************************************/
     RT_SEM sem_barrier;
+    RT_SEM sem_readBattery;
     RT_SEM sem_openComRobot;
+    RT_SEM sem_enableCamera;
     RT_SEM sem_serverOk;
     RT_SEM sem_startRobot;
 
@@ -126,6 +133,15 @@ private:
      * @brief Thread starting the communication with the robot.
      */
     void StartRobotTask(void *arg);
+    
+        /**
+     * @brief Thread battery robot.
+     */
+    void BatteryTask(void *arg);
+            /**
+     * @brief Thread battery robot.
+     */
+    void EnableCameraTask(void *arg);
     
     /**
      * @brief Thread handling control of the robot.
