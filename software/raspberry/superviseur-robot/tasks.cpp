@@ -324,8 +324,11 @@ void Tasks::ReceiveFromMonTask(void *arg) {
             move = msgRcv->GetID();
             rt_mutex_release(&mutex_move);
         }
-        else if (msgRcv->CompareID(MESSAGE_CAMERA_CLOSE)){
+        else if (msgRcv->CompareID(MESSAGE_CAM_CLOSE)){
             rt_sem_v(&sem_disableCamera);
+        }
+        else if (msgRcv->CompareID(MESSAGE_CAM_OPEN)){
+            rt_sem_v(&sem_enableCamera);
         }
         delete(msgRcv); // mus be deleted manually, no consumer
         
@@ -335,6 +338,7 @@ void Tasks::ReceiveFromMonTask(void *arg) {
 void Tasks::EnableCameraTask(void *arg) {
     int status;
     Message * msgSend;
+    Message *closeMsg ;
 
     cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
     // Synchronization barrier (waiting that all tasks are starting)
@@ -354,37 +358,29 @@ void Tasks::EnableCameraTask(void *arg) {
                 msgSend = new Message(MESSAGE_ANSWER_ACK);
             }
             WriteInQueue(&q_messageToMon, msgSend); 
-            if (camera.IsOpen())
-            {
-                rt_task_set_periodic(NULL, TM_NOW, 100000000);// toutes les 0.1s
-                while (camera.IsOpen())
-                {
-                    rt_task_wait_period(NULL);
-                    if(tr_sem_p(&sem_disableCamera, TM_NONBLOCK) == 0){
-                        tr_mutex_acquire(&mutex_camera, TM_INFINITE);
-                        camera.Close();
-                        rt_mutex_release(&mutex_Camera);
-                        // Envia mensagem avisando que a câmera foi fechada
-                        Message *closeMsg = new Message(MESSAGE_CAMERA_CLOSED);
-                        WriteInQueue(&q_messageToMon, closeMsg);
+            
+            while (camera.IsOpen()) {
+                rt_task_wait_period(NULL);
+                if (rt_sem_p(&sem_disableCamera, TM_NONBLOCK) == 0){
+                    rt_mutex_acquire(&mutex_camera, TM_INFINITE);
+                    camera.Close();
+                    rt_mutex_release(&mutex_camera);
+                    closeMsg = new Message(MESSAGE_ANSWER_ACK);
+                    WriteInQueue(&q_messageToMon, closeMsg);
                     break;
-                    }
-
-                // Captura e envia a imagem para o monitor
-                rt_mutex_acquire(&mutex_camera, TM_INFINITE);
-                Img* frame = camera.Grab();
-                rt_mutex_release(&mutex_camera);
-
-                if (frame != nullptr) {
-                    // Supondo que o construtor de Message comporte envio de imagem
-                    Message *imgMsg = new Message(frame);
-                    WriteInQueue(&q_messageToMon, imgMsg);
-                    delete frame;
                 }
+
+                rt_task_set_periodic(NULL, TM_NOW, 100000000);// toutes les 0.1s
+                rt_mutex_acquire(&mutex_camera, TM_INFINITE);
+                Img frame = camera.Grab();
+                rt_mutex_release(&mutex_camera);
+ 
+                Message *imgMsg = new MessageImg(MESSAGE_CAM_IMAGE, frame.Copy());
+                WriteInQueue(&q_messageToMon, imgMsg);
             }
         }
     }
-}
+
 
 
 /**
