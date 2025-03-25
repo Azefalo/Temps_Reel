@@ -343,6 +343,7 @@ void Tasks::EnableCameraTask(void *arg) {
     cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
     // Synchronization barrier (waiting that all tasks are starting)
     rt_sem_p(&sem_barrier, TM_INFINITE);
+    rt_task_set_periodic(NULL, TM_NOW, 100000000);// toutes les 0.1s
     while (1) {
             rt_sem_p(&sem_enableCamera, TM_INFINITE);
             cout << "Enable camera (";
@@ -360,7 +361,7 @@ void Tasks::EnableCameraTask(void *arg) {
             WriteInQueue(&q_messageToMon, msgSend); 
             
             while (camera.IsOpen()) {
-                rt_task_wait_period(NULL);
+                
                 if (rt_sem_p(&sem_disableCamera, TM_NONBLOCK) == 0){
                     rt_mutex_acquire(&mutex_camera, TM_INFINITE);
                     camera.Close();
@@ -369,8 +370,8 @@ void Tasks::EnableCameraTask(void *arg) {
                     WriteInQueue(&q_messageToMon, closeMsg);
                     break;
                 }
-
-                rt_task_set_periodic(NULL, TM_NOW, 100000000);// toutes les 0.1s
+                rt_task_wait_period(NULL);
+                
                 rt_mutex_acquire(&mutex_camera, TM_INFINITE);
                 Img frame = camera.Grab();
                 rt_mutex_release(&mutex_camera);
