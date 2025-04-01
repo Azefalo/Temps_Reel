@@ -64,42 +64,60 @@ private:
     /**********************************************************************/
     ComMonitor monitor;
     ComRobot robot;
-    Camera camera;
+    Camera  camera;
+    Img img = Img(ImageMat());
+    Arena arena;
+    int arena_ok = 0;
+    int camOpen = 0;
     int robotStarted = 0;
+    bool cameraPaused = false;
     int move = MESSAGE_ROBOT_STOP;
     int battery = 0;
+    int robot_pos = 0;
     /**********************************************************************/
     /* Tasks                                                              */
     /**********************************************************************/
     RT_TASK th_server;
-    RT_TASK th_battery;
-    RT_TASK th_enableCamera;
-    RT_TASK th_sendToMon;
-    RT_TASK th_receiveFromMon;
     RT_TASK th_openComRobot;
     RT_TASK th_startRobot;
+    RT_TASK th_startRobotWD;
     RT_TASK th_move;
+    RT_TASK th_sendToMon;
+    RT_TASK th_receiveFromMon;
+    RT_TASK th_enableCamera;
+    RT_TASK th_cam;
+    RT_TASK th_searchArena;
+    RT_TASK th_Arena;
+    RT_TASK th_battery;
     
     /**********************************************************************/
     /* Mutex                                                              */
     /**********************************************************************/
     RT_MUTEX mutex_monitor;
     RT_MUTEX mutex_robot;
-    RT_MUTEX mutex_camera;
-    RT_MUTEX mutex_battery;
     RT_MUTEX mutex_robotStarted;
     RT_MUTEX mutex_move;
+    RT_MUTEX mutex_camera;
+    RT_MUTEX mutex_arena;
+    RT_MUTEX mutex_battery;
 
     /**********************************************************************/
     /* Semaphores                                                         */
     /**********************************************************************/
     RT_SEM sem_barrier;
-    RT_SEM sem_readBattery;
+    RT_SEM sem_serverOk;
     RT_SEM sem_openComRobot;
+    RT_SEM sem_startRobot;
+    RT_SEM sem_startRobotWD;
     RT_SEM sem_enableCamera;
     RT_SEM sem_disableCamera;
-    RT_SEM sem_serverOk;
-    RT_SEM sem_startRobot;
+    RT_SEM sem_askArena;
+    RT_SEM sem_Arena;
+    RT_SEM sem_ArenaOK;
+    RT_SEM sem_cam;
+    RT_SEM sem_confirmArena;
+       RT_SEM sem_infirmArena;
+    RT_SEM sem_readBattery;
 
     /**********************************************************************/
     /* Message queues                                                     */
@@ -135,19 +153,40 @@ private:
      */
     void StartRobotTask(void *arg);
     
-        /**
-     * @brief Thread battery robot.
-     */
-    void BatteryTask(void *arg);
-            /**
-     * @brief Thread battery robot.
-     */
-    void EnableCameraTask(void *arg);
+    void StartRobotWDTask(void *arg);
     
     /**
      * @brief Thread handling control of the robot.
      */
     void MoveTask(void *arg);
+   
+    /**
+     * @brief Thread battery robot.
+     */
+//    void EnableCameraTask(void *arg);
+    
+         /** @brief Thread handling the opening of the camera.
+     */
+    void OpenCameraTask(void *arg);
+
+    /**
+     * @brief Thread handling the closing of the camera.
+     */
+    void CloseCameraTask(void *arg);
+    void CameraTask(void *arg);
+    /**
+     * @brief Thread search arena.
+     */
+//    void SearchArenaTask(void *arg);
+      void ArenaTask(void *arg);
+    
+    /**
+     * @brief Thread battery robot.
+     */
+    void BatteryTask(void *arg);
+    
+    void CalculPositionTask (Img * img);
+    void MonitorError (Message * msgReceived);
     
     /**********************************************************************/
     /* Queue services                                                     */
