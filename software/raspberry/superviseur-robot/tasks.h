@@ -86,6 +86,7 @@ private:
     RT_TASK th_receiveFromMon;
     RT_TASK th_enableCamera;
     RT_TASK th_cam;
+    RT_TASK th_position;
     RT_TASK th_searchArena;
     RT_TASK th_Arena;
     RT_TASK th_battery;
