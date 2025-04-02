@@ -68,6 +68,7 @@ private:
     Img img = Img(ImageMat());
     Arena arena;
     int arena_ok = 0;
+    int Counter =0;
     int camOpen = 0;
     int robotStarted = 0;
     bool cameraPaused = false;
