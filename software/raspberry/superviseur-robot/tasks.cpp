@@ -475,34 +475,6 @@ void Tasks::CloseCameraTask(void *arg) {
     cout << "camera closed" << endl <<flush;
 }
 
-//void Tasks::CameraTask(void *arg) {
-//    rt_task_set_periodic(NULL, TM_NOW, 100000000);
-//    cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
-//    rt_sem_p(&sem_barrier, TM_INFINITE);
-//    rt_sem_p(&sem_cam, TM_INFINITE);
-//    
-//    while (1) {
-//        rt_task_wait_period(NULL);
-//        rt_mutex_acquire(&mutex_camera, TM_INFINITE);
-//        if (camOpen && !cameraPaused) { 
-//            Img * img = new Img(camera.Grab());
-//
-//            if (arena_ok) {
-//                img->DrawArena(arena);
-//                MessageImg *msgImg = new MessageImg(MESSAGE_CAM_IMAGE, img);
-//                WriteInQueue(&q_messageToMon, msgImg);
-//            }
-//
-//            if (robot_pos == 1) {
-//                CalculPositionTask(img);
-//            } else {
-//                MessageImg *msgImg = new MessageImg(MESSAGE_CAM_IMAGE, img);
-//                WriteInQueue(&q_messageToMon, msgImg);
-//            }
-//        }
-//        rt_mutex_release(&mutex_camera);
-//    }
-//}
 
 void Tasks::CameraTask(void *arg) {
     rt_task_set_periodic(NULL, TM_NOW, 100000000);
@@ -518,12 +490,13 @@ void Tasks::CameraTask(void *arg) {
 
             if (arena_ok) {
                 img->DrawArena(arena);
+//                MessageImg *msgImg = new MessageImg(MESSAGE_CAM_IMAGE, img);
+//                WriteInQueue(&q_messageToMon, msgImg);
             }
             
             if (robot_pos == 1) {
                 CalculPositionTask(img);
             } else {
-                // Se não for calcular a posição, envia apenas a imagem.
                 MessageImg *msgImg = new MessageImg(MESSAGE_CAM_IMAGE, img);
                 WriteInQueue(&q_messageToMon, msgImg);
             }
@@ -592,74 +565,26 @@ void Tasks::CalculPositionTask(Img *img) {
 
 
 
-//
-//void Tasks::CalculPositionTask(Img * img) {
-//    std::list<Position> robotPosition;
-//
-//    cout << "Search robot" << endl;
-//
-//    // Adquirir o mutex antes de acessar a arena
-//    rt_mutex_acquire(&mutex_arena, TM_INFINITE);
-//    robotPosition = img->SearchRobot(arena);
-//    rt_mutex_release(&mutex_arena);
-//
-////    if (!robotPosition.empty()) {
-////        cout << "Draw robots" << endl;
-//        img->DrawAllRobots(robotPosition);
-//        Img resized = img->Resize();
-//        WriteInQueue(&q_messageToMon, new MessageImg(MESSAGE_CAM_IMAGE, new Img(*img)));
-//    if (!robotPosition.empty()) {
-////        for (auto position : robotPosition) {
-//            WriteInQueue(&q_messageToMon, new MessagePosition(MESSAGE_CAM_POSITION, robotPosition.front()));
-////        }
-//    } else {
-//        cout << "Nothing Detected" << endl;
-//        Position pos;
-//        pos.robotId = -1;
-//        pos.angle = -1;
-//        pos.center = cv::Point2f(-1.0, -1.0);
-//        pos.direction = cv::Point2f(-1.0, -1.0);
-//        Img resized = img->Resize();
-//        WriteInQueue(&q_messageToMon, new MessagePosition(MESSAGE_CAM_POSITION, pos));
-//    }
-//}
-
-//void Tasks::CalculPositionTask(Img * img) {
-//    std::list<Position> robotPosition;
-//
-//    cout << "Search robot" << endl;
-//    robotPosition =  img->SearchRobot(arena); //Search available robots in an image and return a list of position
-//    if(!robotPosition.empty()){ 
-//        cout << "Draw robots" << endl;
-//        img->DrawAllRobots(robotPosition);
-//        for (auto position : robotPosition){
-//            WriteInQueue(&q_messageToMon, new MessagePosition(MESSAGE_CAM_POSITION,position)); 
-//        }
-//    } else {
-//        cout << "Nothing Detected" << endl;
-//        Position pos = Position();
-//        pos.center = cv::Point2f(-1.0,-1.0);
-//        pos.direction = cv::Point2f(-1.0,-1.0);
-//
-//        WriteInQueue(&q_messageToMon, new MessagePosition(MESSAGE_CAM_POSITION,pos)); 
-//        
-//    }    
-//}
-
 void Tasks::MonitorError(Message * msgReceived) {
     if (msgReceived->GetID() == MESSAGE_MONITOR_LOST){
         cout << " Communication Lost Handling " << __PRETTY_FUNCTION__ << endl << flush;
         delete(msgReceived);
-        robot.Stop();
-        void * arg;
-        CloseCameraTask(arg);
 
+        
+        rt_mutex_acquire(&mutex_move, TM_INFINITE);
+        cout << " Stop of the robot " << endl << flush;
+        move = MESSAGE_ROBOT_STOP;
+        rt_mutex_release(&mutex_move);
+        
         rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE);
         robotStarted = 0 ;
         rt_mutex_release(&mutex_robotStarted);
         
         robot.Close();
 
+        void * arg;
+        CloseCameraTask(arg);
+  
         monitor.AcceptClient();
     } 
 }
@@ -969,4 +894,3 @@ Message *Tasks::ReadInQueue(RT_QUEUE *queue) {
 
     return msg;
 }
-
