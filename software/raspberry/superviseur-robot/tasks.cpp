@@ -570,12 +570,14 @@ void Tasks::MonitorError(Message * msgReceived) {
         cout << " Communication Lost Handling " << __PRETTY_FUNCTION__ << endl << flush;
         delete(msgReceived);
 
-        
         rt_mutex_acquire(&mutex_move, TM_INFINITE);
+        rt_mutex_acquire(&mutex_robot, TM_INFINITE);
         cout << " Stop of the robot " << endl << flush;
         move = MESSAGE_ROBOT_STOP;
+        robot.Write(new Message(MESSAGE_ROBOT_STOP));
+        rt_mutex_release(&mutex_robot);
         rt_mutex_release(&mutex_move);
-        
+
         rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE);
         robotStarted = 0 ;
         rt_mutex_release(&mutex_robotStarted);
@@ -819,6 +821,16 @@ void Tasks::BatteryTask(void *arg) {
         if (rs == 1) {
             rt_mutex_acquire(&mutex_robot, TM_INFINITE);
             msg_battery = robot.Write(robot.GetBattery());
+            if(msg_battery->CompareID(MESSAGE_ANSWER_ROBOT_TIMEOUT)){
+                Counter ++;
+                if (Counter > 3){
+                   cout << "Start++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ " << endl << flush;
+                   Message * msg_reset = robot.Write(robot.Reset());//fix me;
+                   WriteInQueue(&q_messageToMon, msg_reset);
+                }
+            } else {
+                Counter = 0;
+            }
             rt_mutex_release(&mutex_robot);
             WriteInQueue(&q_messageToMon, msg_battery);
         }
