@@ -236,14 +236,6 @@ void Tasks::Run() {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-    if (err = rt_task_start(&th_openCam, (void(*)(void*)) & Tasks::OpenCameraTask, this)) {
-        cerr << "Error task start: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-    if (err = rt_task_start(&th_closeCam, (void(*)(void*)) & Tasks::CloseCameraTask, this)) {
-        cerr << "Error task start: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
     if (err = rt_task_start(&th_cam, (void(*)(void*)) & Tasks::CameraTask, this)) {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -252,18 +244,11 @@ void Tasks::Run() {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-    if (err = rt_task_start(&th_position, (void(*)(void*)) & Tasks::CalculPositionTask, this)) {
-        cerr << "Error task start: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
     if (err = rt_task_start(&th_battery, (void(*)(void*)) & Tasks::BatteryTask, this)) {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-    if (err = rt_task_start(&th_monitorError, (void(*)(void*)) & Tasks::MonitorError, this)) {
-        cerr << "Error task start: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
+
 
     cout << "Tasks launched" << endl << flush;
 }
