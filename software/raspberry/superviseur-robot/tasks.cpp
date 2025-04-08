@@ -21,6 +21,7 @@
 // Déclaration des priorités des taches
 #define PRIORITY_TSERVER 30
 #define PRIORITY_TOPENCOMROBOT 23
+#define PRIORITY_TMONITORERROR 23
 #define PRIORITY_TMOVE 29
 #define PRIORITY_TSENDTOMON 25
 #define PRIORITY_TRECEIVEFROMMON 26
@@ -28,8 +29,6 @@
 #define PRIORITY_TSTARTROBOTWD 20
 #define PRIORITY_TCAMERA 24
 #define PRIORITY_TPOSITION 24
-#define PRIORITY_TENABLECAMERA 24
-#define PRIORITY_TARENASEARCH 21
 #define PRIORITY_TARENA 25
 #define PRIORITY_TBATTERY 27
 
@@ -67,14 +66,6 @@ void Tasks::Init() {
         cerr << "Error mutex create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-    if (err = rt_mutex_create(&mutex_battery, NULL)) {
-        cerr << "Error mutex create: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-    if (err = rt_mutex_create(&mutex_camera, NULL)) {
-        cerr << "Error mutex create: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
     if (err = rt_mutex_create(&mutex_robot, NULL)) {
         cerr << "Error mutex create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -87,6 +78,14 @@ void Tasks::Init() {
         cerr << "Error mutex create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
+    if (err = rt_mutex_create(&mutex_camera, NULL)) {
+        cerr << "Error mutex create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_mutex_create(&mutex_battery, NULL)) {
+        cerr << "Error mutex create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
     cout << "Mutexes created successfully" << endl << flush;
 
     /**************************************************************************************/
@@ -96,43 +95,11 @@ void Tasks::Init() {
         cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-    if (err = rt_sem_create(&sem_readBattery, NULL, 0, S_FIFO)) {
-        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-    if (err = rt_sem_create(&sem_enableCamera, NULL, 0, S_FIFO)) {
-        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-    if (err = rt_sem_create(&sem_disableCamera, NULL, 0, S_FIFO)) {
-        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-//    if (err = rt_sem_create(&sem_askArena, NULL, 0, S_FIFO)) {
-//        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
-//        exit(EXIT_FAILURE);
-//    }
-      if (err = rt_sem_create(&sem_Arena, NULL, 0, S_FIFO)) {
-        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-      if (err = rt_sem_create(&sem_ArenaOK, NULL, 0, S_FIFO)) {
-        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-    if (err = rt_sem_create(&sem_confirmArena, NULL, 0, S_FIFO)) {
-        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-        if (err = rt_sem_create(&sem_infirmArena, NULL, 0, S_FIFO)) {
+    if (err = rt_sem_create(&sem_serverOk, NULL, 0, S_FIFO)) {
         cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
     if (err = rt_sem_create(&sem_openComRobot, NULL, 0, S_FIFO)) {
-        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-    if (err = rt_sem_create(&sem_serverOk, NULL, 0, S_FIFO)) {
         cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
@@ -141,6 +108,22 @@ void Tasks::Init() {
         exit(EXIT_FAILURE);
     }
     if (err = rt_sem_create(&sem_startRobotWD, NULL, 0, S_FIFO)) {
+        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_sem_create(&sem_cam, NULL, 0, S_FIFO)) {
+        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_sem_create(&sem_Arena, NULL, 0, S_FIFO)) {
+        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_sem_create(&sem_ArenaOK, NULL, 0, S_FIFO)) {
+        cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_sem_create(&sem_readBattery, NULL, 0, S_FIFO)) {
         cerr << "Error semaphore create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
@@ -153,18 +136,6 @@ void Tasks::Init() {
         cerr << "Error task create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-    if (err = rt_task_create(&th_battery, "th_battery", 0, PRIORITY_TBATTERY, 0)) {
-        cerr << "Error task create: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-//    if (err = rt_task_create(&th_enableCamera, "th_enableCamera", 0, PRIORITY_TENABLECAMERA, 0)) {
-//        cerr << "Error task create: " << strerror(-err) << endl << flush;
-//        exit(EXIT_FAILURE);
-//    }
-//    if (err = rt_task_create(&th_searchArena, "th_searchArena", 0, PRIORITY_TARENASEARCH, 0)) {
-//        cerr << "Error task create: " << strerror(-err) << endl << flush;
-//        exit(EXIT_FAILURE);
-//    }
     if (err = rt_task_create(&th_sendToMon, "th_sendToMon", 0, PRIORITY_TSENDTOMON, 0)) {
         cerr << "Error task create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -185,19 +156,35 @@ void Tasks::Init() {
         cerr << "Error task create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-        if (err = rt_task_create(&th_cam, "th_cam", 0, PRIORITY_TCAMERA, 0)) {
+    if (err = rt_task_create(&th_move, "th_move", 0, PRIORITY_TMOVE, 0)) {
         cerr << "Error task create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-//    if (err = rt_task_create(&th_position, "th_position", 0, PRIORITY_TPOSITION, 0)) {
-//        cerr << "Error task create: " << strerror(-err) << endl << flush;
-//        exit(EXIT_FAILURE);
-//    }
+    if (err = rt_task_create(&th_openCam, "th_openCam", 0, PRIORITY_TCAMERA, 0)) {
+        cerr << "Error task create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_create(&th_closeCam, "th_closeCam", 0, PRIORITY_TCAMERA, 0)) {
+        cerr << "Error task create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_create(&th_cam, "th_cam", 0, PRIORITY_TCAMERA, 0)) {
+        cerr << "Error task create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
     if (err = rt_task_create(&th_Arena, "th_Arena", 0, PRIORITY_TARENA, 0)) {
         cerr << "Error task create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-    if (err = rt_task_create(&th_move, "th_move", 0, PRIORITY_TMOVE, 0)) {
+    if (err = rt_task_create(&th_position, "th_position", 0, PRIORITY_TPOSITION, 0)) {
+        cerr << "Error task create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_create(&th_battery, "th_battery", 0, PRIORITY_TBATTERY, 0)) {
+        cerr << "Error task create: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_create(&th_monitorError, "th_monitorError", 0, PRIORITY_TMONITORERROR, 0)) {
         cerr << "Error task create: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
@@ -225,18 +212,6 @@ void Tasks::Run() {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-    if (err = rt_task_start(&th_battery, (void(*)(void*)) & Tasks::BatteryTask, this)) {
-        cerr << "Error task start: " << strerror(-err) << endl << flush;
-        exit(EXIT_FAILURE);
-    }
-//    if (err = rt_task_start(&th_enableCamera, (void(*)(void*)) & Tasks::EnableCameraTask, this)) {
-//        cerr << "Error task start: " << strerror(-err) << endl << flush;
-//        exit(EXIT_FAILURE);
-//    }
-//    if (err = rt_task_start(&th_searchArena, (void(*)(void*)) & Tasks::SearchArenaTask, this)) {
-//        cerr << "Error task start: " << strerror(-err) << endl << flush;
-//        exit(EXIT_FAILURE);
-//    }
     if (err = rt_task_start(&th_sendToMon, (void(*)(void*)) & Tasks::SendToMonTask, this)) {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
@@ -257,19 +232,35 @@ void Tasks::Run() {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-        if (err = rt_task_start(&th_cam, (void(*)(void*)) & Tasks::CameraTask, this)) {
+    if (err = rt_task_start(&th_move, (void(*)(void*)) & Tasks::MoveTask, this)) {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-//    if (err = rt_task_start(&th_position, (void(*)(void*)) & Tasks::CalculPositionTask, this)) {
-//        cerr << "Error task start: " << strerror(-err) << endl << flush;
-//        exit(EXIT_FAILURE);
-//    }
+    if (err = rt_task_start(&th_openCam, (void(*)(void*)) & Tasks::OpenCameraTask, this)) {
+        cerr << "Error task start: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_start(&th_closeCam, (void(*)(void*)) & Tasks::CloseCameraTask, this)) {
+        cerr << "Error task start: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_start(&th_cam, (void(*)(void*)) & Tasks::CameraTask, this)) {
+        cerr << "Error task start: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
     if (err = rt_task_start(&th_Arena, (void(*)(void*)) & Tasks::ArenaTask, this)) {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
-    if (err = rt_task_start(&th_move, (void(*)(void*)) & Tasks::MoveTask, this)) {
+    if (err = rt_task_start(&th_position, (void(*)(void*)) & Tasks::CalculPositionTask, this)) {
+        cerr << "Error task start: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_start(&th_battery, (void(*)(void*)) & Tasks::BatteryTask, this)) {
+        cerr << "Error task start: " << strerror(-err) << endl << flush;
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_start(&th_monitorError, (void(*)(void*)) & Tasks::MonitorError, this)) {
         cerr << "Error task start: " << strerror(-err) << endl << flush;
         exit(EXIT_FAILURE);
     }
@@ -376,11 +367,11 @@ void Tasks::ReceiveFromMonTask(void *arg) {
             rt_sem_v(&sem_openComRobot);
         }
         
-        else if (msgRcv->CompareID(MESSAGE_ROBOT_START_WITHOUT_WD)) {  // a modifier peut etre
+        else if (msgRcv->CompareID(MESSAGE_ROBOT_START_WITHOUT_WD)) {  
             rt_sem_v(&sem_startRobot);
         } 
         
-        else if (msgRcv->CompareID(MESSAGE_ROBOT_START_WITH_WD)) {
+        else if (msgRcv->CompareID(MESSAGE_ROBOT_START_WITH_WD)) { // pas eu le temps de développer le Watchdog
             rt_sem_v(&sem_startRobotWD);
         }
         
@@ -400,7 +391,6 @@ void Tasks::ReceiveFromMonTask(void *arg) {
         }
         
         else if (msgRcv->CompareID(MESSAGE_CAM_OPEN)){
-//            rt_sem_v(&sem_enableCamera);
             OpenCameraTask (arg);
         }
         
@@ -409,8 +399,7 @@ void Tasks::ReceiveFromMonTask(void *arg) {
         }
         
         else if (msgRcv->CompareID(MESSAGE_CAM_ARENA_CONFIRM)){
-//            rt_sem_v(&sem_confirmArena);
-            cout << "Releasing sem_ArenaOK" << endl;
+            //cout << "Releasing sem_ArenaOK" << endl;
             rt_sem_v(&sem_ArenaOK);
             rt_mutex_acquire(&mutex_camera, TM_INFINITE);
             cameraPaused = false;
@@ -419,14 +408,12 @@ void Tasks::ReceiveFromMonTask(void *arg) {
         }
         
         else if (msgRcv->CompareID(MESSAGE_CAM_ARENA_INFIRM)){
-//            rt_sem_v(&sem_infirmArena);
-            cout << "Releasing sem_ArenaOK" << endl;
+            //cout << "Releasing sem_ArenaOK" << endl;
             rt_sem_v(&sem_ArenaOK);
             rt_mutex_acquire(&mutex_camera, TM_INFINITE);
             cameraPaused = false;
             rt_mutex_release(&mutex_camera);
             arena_ok = 0;
-            // Error message
         }
         else if (msgRcv->CompareID(MESSAGE_CAM_POSITION_COMPUTE_START)){  
             robot_pos = 1;
@@ -454,7 +441,6 @@ void Tasks::OpenCameraTask(void *arg) {
         cout << "cam opened" << endl;
         camOpen = 1;
         rt_sem_v(&sem_cam);
-        //rt_sem_broadcast(&sem_cam);
     }
     rt_mutex_release(&mutex_camera);
     WriteInQueue(&q_messageToMon,msg);    
@@ -490,8 +476,6 @@ void Tasks::CameraTask(void *arg) {
 
             if (arena_ok) {
                 img->DrawArena(arena);
-//                MessageImg *msgImg = new MessageImg(MESSAGE_CAM_IMAGE, img);
-//                WriteInQueue(&q_messageToMon, msgImg);
             }
             
             if (robot_pos == 1) {
@@ -517,8 +501,6 @@ void Tasks::ArenaTask(void *arg) {
         rt_sem_p(&sem_Arena, TM_INFINITE);
         rt_mutex_acquire(&mutex_camera, TM_INFINITE);
         cameraPaused = true;
-//        rt_mutex_release(&mutex_camera);
-//        rt_mutex_acquire(&mutex_camera, TM_INFINITE);
         Img * img = new Img(camera.Grab());
         arena = img -> SearchArena();
         cout << "ENDDD " << __PRETTY_FUNCTION__ << endl << flush;
@@ -590,107 +572,6 @@ void Tasks::MonitorError(Message * msgReceived) {
         monitor.AcceptClient();
     } 
 }
-//void Tasks::EnableCameraTask(void *arg) {
-//    int status;
-//    Message *msgSend;
-//    Message *closeMsg ;
-//
-//    cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
-//    // Synchronization barrier (waiting that all tasks are starting)
-//    rt_sem_p(&sem_barrier, TM_INFINITE);
-//    rt_task_set_periodic(NULL, TM_NOW, 100000000);// toutes les 0.1s
-//    while (1) {
-//        rt_sem_p(&sem_enableCamera, TM_INFINITE);
-//        cout << "Enable camera (";
-//        rt_mutex_acquire(&mutex_camera, TM_INFINITE);
-//        status = camera.Open(); 
-//        rt_mutex_release(&mutex_camera);
-//        cout << status;
-//        cout << ")" << endl << flush;
-//
-//        if (status < 0) {
-//            msgSend = new Message(MESSAGE_ANSWER_NACK);
-//        } else {
-//            msgSend = new Message(MESSAGE_ANSWER_ACK);
-//        }
-//        WriteInQueue(&q_messageToMon, msgSend); 
-//
-//        while (camera.IsOpen()) {
-//            //rt_task_wait_period(NULL);
-////            if (rt_sem_p(&sem_disableCamera, TM_NONBLOCK) == 0){
-////                rt_mutex_acquire(&mutex_camera, TM_INFINITE);
-////                camera.Close();
-////                rt_mutex_release(&mutex_camera);
-////                closeMsg = new Message(MESSAGE_ANSWER_ACK);
-////                WriteInQueue(&q_messageToMon, closeMsg);
-////                break;
-////            }
-//            
-////                 // Si la recherche d'arène est en cours, suspendre l'envoi des images
-//            if (rt_sem_p(&sem_askArena, TM_NONBLOCK) == 0) {
-//                cout << "Recherche d'arène en cours, arrêt de l'envoi des images" << endl;
-//                // Attendre la validation de l'arène
-//                rt_sem_p(&sem_confirmArena, TM_INFINITE); 
-//                rt_sem_p(&sem_infirmArena, TM_INFINITE); // Attendre la confirmation ou l'infirmation
-//                cout << "Reprise de l'envoi des images" << endl;
-//            }
-//            rt_task_wait_period(NULL);
-//            rt_mutex_acquire(&mutex_camera, TM_INFINITE);
-//            Img frame = camera.Grab();
-//            rt_mutex_release(&mutex_camera);
-//
-//            Message *imgMsg = new MessageImg(MESSAGE_CAM_IMAGE, frame.Copy());
-//            WriteInQueue(&q_messageToMon, imgMsg);
-//        }
-//    }
-//}
-
-/**
- * @brief Thread opening communication with the robot.
- */
-//void Tasks::SearchArenaTask(void *arg) {
-//    bool arenaEmpty;
-//    cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
-//    // Synchronization barrier (waiting that all tasks are starting)
-//    rt_sem_p(&sem_barrier, TM_INFINITE);
-//    
-//    while(1){
-//        rt_sem_p(&sem_askArena, TM_INFINITE);
-//        cout << "Starting search arena" << endl;
-//        rt_mutex_acquire(&mutex_camera, TM_INFINITE);
-//        arenaEmpty = arena.IsEmpty(); 
-//        rt_mutex_release(&mutex_camera);
-////        rt_sem_p(&sem_enableCamera, TM_INFINITE);
-//        
-//        if (!arenaEmpty){
-//            Arena tempArena = img.SearchArena();
-//            if (!tempArena.IsEmpty()){
-//                img.DrawArena(tempArena);
-//                
-//                 cout << "Attente validation des bordures..." << endl;
-//                 rt_sem_p(&sem_confirmArena, TM_INFINITE);
-//                rt_sem_p(&sem_infirmArena, TM_INFINITE);
-//
-//                // ✅ Si l'utilisateur a validé l'arène, on la met à jour
-//                rt_mutex_acquire(&mutex_arena, TM_INFINITE);
-//                arena = tempArena;
-//                rt_mutex_release(&mutex_arena);
-//                
-////                if (rt_sem_p(&sem_confirmArena, TM_NONBLOCK) == 0){
-////                    rt_mutex_acquire(&mutex_arena, TM_INFINITE);
-////                    arena = tempArena;
-////                    rt_mutex_release(&mutex_arena);
-////                    rt_sem_v(&sem_askArena);
-////                }
-//               
-//                WriteInQueue(&q_messageToMon, new MessageImg(MESSAGE_CAM_IMAGE, new Img(img)));
-//            } else{
-//                WriteInQueue(&q_messageToMon, new Message(MESSAGE_ANSWER_NACK));
-//        }
-//        }
-//        
-//    }
-//}
 
 /**
  * @brief Thread opening communication with the robot.
@@ -763,7 +644,9 @@ void Tasks::StartRobotTask(void *arg) {
 /**
  * @brief Thread starting the communication with the robot with Watchdog.
  */
-void Tasks::StartRobotWDTask(void *arg) {
+// ici on gère bien le message de start avec WD mais la fonctionnalité n'est pas implémentée
+
+void Tasks::StartRobotWDTask(void *arg) {  
     cout << "Start " << __PRETTY_FUNCTION__ << endl << flush;
     // Synchronization barrier (waiting that all tasks are starting)
     rt_sem_p(&sem_barrier, TM_INFINITE);
@@ -812,9 +695,7 @@ void Tasks::BatteryTask(void *arg) {
     rt_task_set_periodic(NULL, TM_NOW, 500000000);// toutes les 0.5s
 
     while (1) {
-//        battery_voltage = ReadBatteryVoltage();  
         rt_task_wait_period(NULL);
-//        cout << "Battery update";
         rt_mutex_acquire(&mutex_robotStarted, TM_INFINITE);
         rs = robotStarted;
         rt_mutex_release(&mutex_robotStarted);
@@ -824,8 +705,7 @@ void Tasks::BatteryTask(void *arg) {
             if(msg_battery->CompareID(MESSAGE_ANSWER_ROBOT_TIMEOUT)){
                 Counter ++;
                 if (Counter > 3){
-                   cout << "Start++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ " << endl << flush;
-                   Message * msg_reset = robot.Write(robot.Reset());//fix me;
+                   Message * msg_reset = robot.Write(robot.Reset());//ici nous n'avons pas trouvé quel était le message a envoyer pour le RESET du Robot;
                    WriteInQueue(&q_messageToMon, msg_reset);
                 }
             } else {
