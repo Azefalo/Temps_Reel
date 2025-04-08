@@ -85,12 +85,13 @@ private:
     RT_TASK th_move;
     RT_TASK th_sendToMon;
     RT_TASK th_receiveFromMon;
-    RT_TASK th_enableCamera;
+    RT_TASK th_openCam;
+    RT_TASK th_closeCam;
     RT_TASK th_cam;
     RT_TASK th_position;
-    RT_TASK th_searchArena;
     RT_TASK th_Arena;
     RT_TASK th_battery;
+    RT_TASK th_monitorError;
     
     /**********************************************************************/
     /* Mutex                                                              */
@@ -100,7 +101,6 @@ private:
     RT_MUTEX mutex_robotStarted;
     RT_MUTEX mutex_move;
     RT_MUTEX mutex_camera;
-    RT_MUTEX mutex_arena;
     RT_MUTEX mutex_battery;
 
     /**********************************************************************/
@@ -111,14 +111,9 @@ private:
     RT_SEM sem_openComRobot;
     RT_SEM sem_startRobot;
     RT_SEM sem_startRobotWD;
-    RT_SEM sem_enableCamera;
-    RT_SEM sem_disableCamera;
-    RT_SEM sem_askArena;
+    RT_SEM sem_cam;
     RT_SEM sem_Arena;
     RT_SEM sem_ArenaOK;
-    RT_SEM sem_cam;
-    RT_SEM sem_confirmArena;
-       RT_SEM sem_infirmArena;
     RT_SEM sem_readBattery;
 
     /**********************************************************************/
@@ -151,23 +146,22 @@ private:
     void OpenComRobot(void *arg);
 
     /**
-     * @brief Thread starting the communication with the robot.
+     * @brief Thread starting the communication with the robot without WD.
      */
     void StartRobotTask(void *arg);
     
+    /**
+     * @brief Thread starting the communication with the robot with WD.
+     */
     void StartRobotWDTask(void *arg);
     
     /**
      * @brief Thread handling control of the robot.
      */
     void MoveTask(void *arg);
-   
-    /**
-     * @brief Thread battery robot.
-     */
-//    void EnableCameraTask(void *arg);
     
-         /** @brief Thread handling the opening of the camera.
+    /** 
+     * @brief Thread handling the opening of the camera.
      */
     void OpenCameraTask(void *arg);
 
@@ -175,19 +169,30 @@ private:
      * @brief Thread handling the closing of the camera.
      */
     void CloseCameraTask(void *arg);
-    void CameraTask(void *arg);
-    /**
-     * @brief Thread search arena.
-     */
-//    void SearchArenaTask(void *arg);
-      void ArenaTask(void *arg);
     
     /**
-     * @brief Thread battery robot.
+     * @brief Thread handling the camera.
+     */
+    void CameraTask(void *arg);
+    
+    /**
+     * @brief Thread handling the arena.
+     */
+    void ArenaTask(void *arg);
+    
+    /**
+     * @brief Thread handling the robot's position.
+     */
+    void CalculPositionTask (Img * img);
+    
+    /**
+     * @brief Thread handling the robot's battery.
      */
     void BatteryTask(void *arg);
     
-    void CalculPositionTask (Img * img);
+    /**
+     * @brief Thread handling the loss of communication between monitor and supervisor.
+     */
     void MonitorError (Message * msgReceived);
     
     /**********************************************************************/
